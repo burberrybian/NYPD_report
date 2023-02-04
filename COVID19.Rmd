@@ -1,0 +1,187 @@
+---
+title: "COVID19_report"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Description
+
+Johns Hopkins University consistently updates the COVID-19 data. Also, it offers most of the information, including daily confirmed cases, and deaths, broken down by country. 
+
+
+The details for global COVID-19 data is:
+
+<https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series>
+
+In this project, we will analysis:
+
+* The change of global data confirmed and deaths cases is up to date in the pandemic.
+* In the world, which top 10 country regions had the most confirmed cases?
+* In the world, which top 10 country regions had the most deaths cases?
+* Is there a relationship between confirmed and deaths?
+
+## Settig up  my environmnet 
+
+Notes : setting up my R environment by loading the 'tidyverse' packages.
+
+```{r loading packages, message=FALSE}
+library(tidyverse)
+
+```
+
+## Importing Data 
+
+Note: read csv files
+
+```{r import data}
+confirmed_raw <- read.csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv")
+
+deaths_raw <- read.csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv")
+
+```
+
+## Tidying, Cleaning and Transformating Data
+
+Note: one observation per row, one variable per column
+
+Taking away some of the variables, converting some data type, and join two dataset into one table
+
+
+```{r tidy data}
+
+
+confirmed <- confirmed_raw %>%
+              pivot_longer(cols = -c(Province.State,                       Country.Region, Lat, Long),
+                             names_to = "date", values_to =                 "confirmed") %>%
+                select(-c(Province.State, Lat, Long))
+
+deaths <- deaths_raw %>%
+                pivot_longer(cols = -c(Province.State,                    Country.Region, Lat, Long),
+                             names_to = "date", values_to =                 "deaths") %>%
+                select(-c(Province.State, Lat, Long))
+
+country <- confirmed %>%
+          full_join(deaths) 
+
+country$date <- country$date %>%
+               sub("X", "", .) %>% 
+               as.Date("%m.%d.%y")
+
+country <- country  %>%
+          filter(confirmed > 0)
+
+head(country)
+summary(country)
+
+
+
+```
+
+## Visualizing and Analyzing Data
+
+
+```{r data summary}
+global <- country %>%
+  group_by(date)  %>%
+  summarize(confirmed=sum(confirmed), deaths=sum(deaths))
+
+summary(global)
+```
+As the summary result above, we can see that the shooting happened at the earliest in 2006-01-01, and end in 2020-12-31. The most shooting cases occurred at Brooklyn and Bronx. Most victims age group is 25-44, and 18-24, Male, and the race is black. However, for the perpetrators, there are many NA values in age group, sex, and race. Let's drop these NA values and visualize the data by each areal. 
+
+```{r ggplot for global data, , echo = FALSE}
+global %>% 
+  gather("type", "cases", -c(date)) %>%
+  ggplot(aes(x = date, y = cases, color = type)) + 
+  geom_line() +
+  theme_classic() +
+  scale_y_continuous(trans="log10") +
+  labs(title = "COVID-19 global cases", x= "date", y= "cases log") 
+  
+```
+
+As the graph shown above, we can see that the majority shooting happened in Brooklyn, and Bronx. These two areas are very crowed and most people had actives in these areas compared to the other locations. 
+
+
+Let's visualize the victims race group.
+
+```{r ggplot for top 10 country confirmed, , echo = FALSE}
+
+
+country_top10_confirmed <- country %>%
+  group_by(Country.Region)  %>%
+  summarize(confirmed=sum(confirmed), deaths=sum(deaths))%>%
+  slice_max(confirmed, n = 10)
+
+country_top10_confirmed$Country.Region
+
+country_top10_c <- country %>% 
+  filter(Country.Region==country_top10_confirmed$Country.Region)
+
+ggplot(data = country_top10_c) +
+  scale_y_continuous(trans="log10") +
+  geom_bar(mapping = aes(x = Country.Region, fill = Country.Region))+
+  labs(title = "Top10 country confirmed", x= "country", y= "confirmed log") 
+
+
+
+```
+The most perpetrators are black. Also the most victims are black. We can assume that there are may some personal issues that caused the shooting between black race. 
+
+Let's analyze the shooting caused victims fatal numbers and non-fatal numbers. 
+
+```{r ggplot for top 10 country deaths, , echo = FALSE}
+country_top10_deaths <- country %>%
+  group_by(Country.Region)  %>%
+  summarize(confirmed=sum(confirmed), deaths=sum(deaths))%>%
+  slice_max(deaths, n = 10)
+
+country_top10_deaths$Country.Region
+
+country_top10_d <- country %>% 
+  filter(Country.Region==country_top10_deaths$Country.Region)
+
+ ggplot(data = country_top10_d) +
+  scale_y_continuous(trans="log10") +
+  geom_bar(mapping = aes(x = Country.Region, fill = Country.Region))+
+  labs(title = "Top10 country deaths", x= "country", y= "deaths log") 
+
+
+
+```
+
+## Modeling
+
+We can see that the shooting total cases higher the fatal rate is higher. We can assume there is a linear relationship between fatal rate and total shooting cases.
+
+```{r modeling}
+model <- lm( deaths ~ confirmed, data = country)
+summary(model)
+
+```
+## Coulusion and Bais 
+
+The most shooting cases occurred in Brooklyn and the majority victim race is Black. The most perpetrator's race is black.The more shooting case happened, the more fatal rate and non-fatal rate in each location. 
+
+There are many NA values in perpetrator race which will cause the high bias in the dataset. 
+## Description
+
+Johns Hopkins University consistently updates the COVID-19 data. Also, it offers most of the information, including daily confirmed cases, and deaths, broken down by country. 
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
