@@ -1,0 +1,110 @@
+---
+title: "NYPD shooting data report"
+date: "2022-05-03"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+## Description
+
+New York Police Department provided the shooting incident data from 2006 to 2021, which happened in main five boroughs in New York city. The both perpetrators and victims' sex, age group and race are provided. 
+
+The details from NYPD Shooting Incident Data (Historic)  is:
+
+**<https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD>**
+
+In this project, we will analysis:
+
+* Yearly shooting incidents
+* Shooting incidents by time of the day
+* Total shooting incident by boroughs in New York city
+
+## Settig up  my environmnet 
+
+Notes : setting up my R environment by loading the 'tidyverse' and 'lubridata' packages.
+
+```{r loading packages, message=FALSE}
+library(tidyverse)
+library(lubridate)
+```
+## Importing Data 
+
+Note: read csv file
+
+```{r loading data, message=FALSE}
+df <- read_csv("https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD")
+head(df)
+dim(df)
+```
+
+## Cleaning and Transformating Data
+
+
+Cleaning data, select variables, rename columns, and convert data type
+
+
+```{r data cleaning}
+df <- df %>% 
+  rename(date = OCCUR_DATE, time =OCCUR_TIME,  borough = BORO, murder_flag = STATISTICAL_MURDER_FLAG, vic_age = VIC_AGE_GROUP, vic_sex = VIC_SEX, vic_race = VIC_RACE) %>% 
+  mutate(date = mdy(date), borough = as_factor(borough), murder_flag = as.factor(murder_flag), vic_age = as_factor(vic_age), 
+         vic_sex = as_factor(vic_sex), vic_race = as_factor(vic_race)) %>% 
+  
+  select(date,time, borough, murder_flag, vic_age, vic_sex, vic_race)
+  
+head(df)
+```
+
+## Visualizing and Analyzing Data
+
+
+```{r data summary}
+
+summary(df)
+
+```
+```{r total shooting incident by boroughs, , echo = FALSE}
+ggplot(data = df) +
+  geom_bar(mapping = aes(x = borough,  fill = borough))+
+  theme_classic() 
+  
+
+```
+The total shooting incident by boroughs in new york city. Brookly has the most shooting  incidents in total, Bronx comes the second. Staten Island has the lowest shooting incidents among the 5 boroughs. 
+
+```{r yearly shooting incidents , , echo = FALSE}
+
+df2 <- df %>%
+  mutate( year = format(date, "%Y")) %>%
+  group_by(year)  %>%
+  summarize(count=length(borough))
+
+df2
+
+summary(df2)
+
+
+ggplot(data = df2,aes(x = year, y = count) ) +
+ geom_bar(stat = "identity",  fill="steelblue") 
+  
+ 
+
+```
+This is the yearly shooting incidents chart. In 2006, it has the most shooting incidents. From 2017 to 2019, shooting incidents reach the bottom. From 2020 to 2021 it suddenly shoots up, almost doubled.
+
+```{r shooting incidents by time of the day, echo = FALSE}
+df3 <- df%>%
+  mutate(hour = hour(hms(as.character(time))))%>%
+group_by(hour)%>%
+count()
+head(df3)
+ggplot(df3, aes(x = hour, y = n)) +
+  geom_line()+
+  theme_classic() +
+  labs( x= "time", y= "count ")
+```
+This is the shooting incidents by time of the day chart. Early morning it has the lowest shooting incidents. Incidents number peaks around midnight.  During the day time the incident climbs steadily from the bottom in early morning, all the way to midnight.
+
+## Conclusion
+In conclusion, from 2006 shooting incidents drops steadily until 2020, which shoots up sharply back to the 2006 level. In early morning New York City has the lowest shooting incidents. By boroughs, Staten Island has the total lowest shooting incidents. 
